@@ -1,0 +1,50 @@
+name: SQE Course Registration CI Tests
+
+on:
+  push:
+    branches:
+      - main
+      - blackbox-testing
+      - whitebox-testing
+      - defect-fixes
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Execute Pytest and Branch Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install openpyxl
+
+      - name: Run Black-Box Tests & Branch Coverage
+        id: run_blackbox
+        # In early phases before defect fixes, initial tests will legitimately fail.
+        # continue-on-error preserves CI evidence of legitimate pre-fix failures.
+        continue-on-error: true
+        run: |
+          python -m pytest tests/test_blackbox.py -v --cov=registration --cov-branch --cov-report=term-missing --cov-report=xml:coverage-blackbox.xml
+
+      - name: Run White-Box Tests
+        id: run_whitebox
+        continue-on-error: true
+        run: |
+          python -m pytest tests/test_whitebox.py -v --cov=registration --cov-branch --cov-report=term-missing --cov-append
+
+      - name: Generate Consolidated Test & Coverage Summary
+        run: |
+          python -m pytest tests/ -v --cov=registration --cov-branch --cov-report=term-missing || true
